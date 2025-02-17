@@ -9,7 +9,8 @@ export function getUserPowerBIDashboards(){
             'accept': '*/*',
             'content-type': 'application/json',
             'Authorization': `Bearer ${__ENV.TOKEN}`
-        }
+        },
+        timeout: '5s'
     })
 
     check(response, {
@@ -28,7 +29,8 @@ export function getUserPowerBIDashboardByID(){
             'accept': '*/*',
             'content-type': 'application/json',
             'Authorization': `Bearer ${__ENV.TOKEN}`
-        }
+        },
+        timeout: '5s'
     })
 
     check(response, {

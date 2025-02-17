@@ -9,7 +9,8 @@ export function getUserCategoryInsights(){
             'accept': '*/*',
             'content-type': 'application/json',
             'Authorization': `Bearer ${__ENV.TOKEN}`
-        }
+        },
+        timeout: '5s'
     })
 
     check(response, {
@@ -32,7 +33,8 @@ export function getPresignedS3URL(){
             'accept': '*/*',
             'content-type': 'application/json',
             'Authorization': `Bearer ${__ENV.TOKEN}`
-        }
+        },
+        timeout: '5s'
     })
 
     check(response, {
