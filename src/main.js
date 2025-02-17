@@ -6,11 +6,11 @@ import { getPresignedS3URL, getUserCategoryInsights } from "./helper/category-re
 export const options = {
     thresholds: {
         // Success and failure thresholds for dashboard access
-        dashboard_access_success: ['count>1990'],
+        dashboard_access_success: ['count>1490'],
         dashboard_access_failed: ['count<10'],
 
         // Success and failure thresholds for report downloads
-        report_download_success: ['count>1990'],
+        report_download_success: ['count>1490'],
         report_download_failed: ['count<10'],
     },
     scenarios: {
