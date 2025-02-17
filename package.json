@@ -1,0 +1,20 @@
+{
+  "name": "metercube_k6",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "k6:test": "dotenv -e .env k6 run src/test.js",
+    "k6:main": "dotenv -e .env k6 run src/main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "k6": "^0.0.0"
+  },
+  "devDependencies": {
+    "@types/k6": "^0.54.2",
+    "dotenv-cli": "^8.0.0"
+  }
+}
