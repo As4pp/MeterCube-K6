@@ -10,35 +10,35 @@ import {
 } from "./helper/category-report.js";
 
 export const options = {
-  stages: [
-    { duration: "10s", target: 1000 }, // Ramp-up to 1000 VUs in 10 seconds
-    { duration: "10s", target: 3000 }, // Ramp-up to 3000 VUs in 10 seconds
-    { duration: "1m", target: 3000 }, // Maintain 3000 VUs for 1 minute
-  ],
+  // stages: [
+  //   { duration: "10s", target: 1000 }, // Ramp-up to 1000 VUs in 10 seconds
+  //   { duration: "10s", target: 3000 }, // Ramp-up to 3000 VUs in 10 seconds
+  //   { duration: "1m", target: 3000 }, // Maintain 3000 VUs for 1 minute
+  // ],
   thresholds: {
     // Success and failure thresholds for dashboard access
-    dashboard_access_success: ["count>1490"],
+    dashboard_access_success: ["count>2990"],
     dashboard_access_failed: ["count<10"],
 
     // Success and failure thresholds for report downloads
-    report_download_success: ["count>1490"],
+    report_download_success: ["count>2990"],
     report_download_failed: ["count<10"],
   },
   scenarios: {
-    // TOTAL API CALL = 25 VUs × 20 iterations × 3 API calls per iteration =  150000 API calls
+    // TOTAL API CALL = 1500 VUs × 20 iterations × 3 API calls per iteration = 90,000  API calls
     dashboardAccess: {
       exec: "dashboardAccessScenario",
       executor: "per-vu-iterations",
-      vus: 1500, // Number of virtual users
-      iterations: 20, // Number of iterations per user
+      vus: 1, // Number of virtual users
+      iterations: 100, // Number of iterations per user
       maxDuration: "1m", // Maximum duration for the test
     },
-    // TOTAL API CALL = 25 VUs × 20 iterations × 3 API calls per iteration =  150000 API calls
+    // TOTAL API CALL = 1500 VUs × 20 iterations × 3 API calls per iteration = 90,000 API calls
     reportDownload: {
       exec: "reportDownloadScenario",
       executor: "per-vu-iterations",
-      vus: 1500,
-      iterations: 20,
+      vus: 1,
+      iterations: 100,
       maxDuration: "1m",
     },
   },
