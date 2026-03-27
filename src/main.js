@@ -8,96 +8,276 @@ import {
   getPresignedS3URL,
   getUserCategoryInsights,
 } from "./helper/category-report.js";
+import {
+  getDigitalShelfBannerPresence,
+  getDigitalShelfCompetitorBrands,
+  getDigitalShelfShopsByBrands,
+  getDigitalShelfSubscriptionDetails,
+  getGlobalScoreCardCountryTableMetricsBatch,
+  getGlobalScoreCardTableMetrics,
+  getGlobalScoreCardTrendMetrics,
+  getProductHealthContentQualityMetrics,
+  getProductHealthContentQualityProducts,
+  getProductHealthOnlineAvailabilityMetrics,
+  getProductHealthOnlineAvailabilityProducts,
+  getProductHealthPriceCompetitivenessMetrics,
+  getProductHealthPriceCompetitivenessProducts,
+  getProductHealthRatingsReviewsMetrics,
+  getProductHealthRatingsReviewsProducts,
+  getShareOfSearchKeywordDistribution,
+  getShareOfSearchKeywordInsightsScatterPlot,
+  getShareOfSearchKeywordOptions,
+  getShareOfSearchPositionTable,
+  getShareOfSearchSearchInsightsMetrics,
+  getShareOfSearchSearchInsightsRanking,
+} from "./helper/digital-shelf.js";
 
-export const options = {
-  thresholds: {
-    // Success and failure thresholds for dashboard access
-    dashboard_access_success: ["count>1490"],
-    dashboard_access_failed: ["count<10"],
+const isDigitalShelfEnabled = __ENV.ENABLE_DIGITAL_SHELF === "true";
 
-    // Success and failure thresholds for report downloads
-    report_download_success: ["count>1490"],
-    report_download_failed: ["count<10"],
-  },
-  scenarios: {
-    // TOTAL API CALL = 1500 VUs × 1 iterations × 3 API calls per iteration =  4500 API calls
-    dashboardAccess: {
-      exec: "dashboardAccessScenario",
-      executor: "ramping-vus",
-      startVUs: 0,
-      stages: [
-        { target: 500, duration: "10s" },
-        { target: 0, duration: "10s" },
-        // { target: 500, duration: "10s" },
-      ],
-      gracefulRampDown: "0s",
-    },
-    // TOTAL API CALL = 1500 VUs × 1 iterations × 3 API calls per iteration =  4500 API calls
-    reportDownload: {
-      exec: "reportDownloadScenario",
-      executor: "ramping-vus",
-      startVUs: 0,
-      stages: [
-        { target: 500, duration: "10s" },
-        { target: 0, duration: "10s" },
-      ],
-      gracefulRampDown: "0s",
-    },
-  },
-};
+function createThresholds(prefix, minSuccess) {
+  return {
+    [`${prefix}_success`]: [`count>${minSuccess}`],
+    [`${prefix}_failed`]: ["count<10"],
+  };
+}
 
-// Metrics counters for dashboard access
-const dashboardAccessSuccessCounter = new Counter("dashboard_access_success");
-const dashboardAccessFailedCounter = new Counter("dashboard_access_failed");
+function buildScenario(exec) {
+  return {
+    exec,
+    executor: "ramping-vus",
+    startVUs: 0,
+    stages: [
+      { target: 500, duration: "10s" },
+      { target: 0, duration: "10s" },
+    ],
+    gracefulRampDown: "0s",
+  };
+}
 
-// Metrics counters for report downloads
-const reportDownloadSuccessCounter = new Counter("report_download_success");
-const reportDownloadFailedCounter = new Counter("report_download_failed");
+function createScenarioCounters(prefix) {
+  return {
+    success: new Counter(`${prefix}_success`),
+    failed: new Counter(`${prefix}_failed`),
+  };
+}
 
-// Function to simulate user accessing dashboard
-export function dashboardAccessScenario() {
-  // Step 1: User logs in and retrieves account details
-  const accountResponse = getAccountDetails();
-
-  //   // Step 2: User accesses the dashboard list
-  //   const dashboardListResponse = getUserPowerBIDashboards();
-
-  //   // Step 3: User opens a specific dashboard
-  //   const dashboardDetailResponse = getUserPowerBIDashboardByID();
-
-  // Count success or failure based on API response status
-  if (
-    accountResponse.status === 200
-    // &&
-    // dashboardListResponse.status === 200 &&
-    // dashboardDetailResponse.status === 200
-  ) {
-    dashboardAccessSuccessCounter.add(1);
+function recordScenario(counters, responses) {
+  if (responses.every((response) => response.status === 200)) {
+    counters.success.add(1);
   } else {
-    dashboardAccessFailedCounter.add(1);
+    counters.failed.add(1);
   }
 }
 
-// Function to simulate user downloading reports
-export function reportDownloadScenario() {
-  // Step 1: User logs in and retrieves account details
+export const options = {
+  thresholds: {
+    ...createThresholds("dashboard_access", 1490),
+    ...createThresholds("report_download", 1490),
+    ...(isDigitalShelfEnabled
+      ? {
+          ...createThresholds("digital_shelf_banner_presence", 1490),
+          ...createThresholds("digital_shelf_share_of_search_search_insights", 1490),
+          ...createThresholds("digital_shelf_share_of_search_keyword_insights", 1490),
+          ...createThresholds("digital_shelf_product_health_online_availability", 1490),
+          ...createThresholds("digital_shelf_product_health_ratings_reviews", 1490),
+          ...createThresholds("digital_shelf_product_health_price_competitiveness", 1490),
+          ...createThresholds("digital_shelf_product_health_content_quality", 1490),
+          ...createThresholds("digital_shelf_global_score_card", 1490),
+        }
+      : {}),
+  },
+  scenarios: {
+    dashboardAccess: buildScenario("dashboardAccessScenario"),
+    reportDownload: buildScenario("reportDownloadScenario"),
+    ...(isDigitalShelfEnabled
+      ? {
+          digitalShelfBannerPresence: buildScenario(
+            "digitalShelfBannerPresenceScenario"
+          ),
+          digitalShelfShareOfSearchSearchInsights: buildScenario(
+            "digitalShelfShareOfSearchSearchInsightsScenario"
+          ),
+          digitalShelfShareOfSearchKeywordInsights: buildScenario(
+            "digitalShelfShareOfSearchKeywordInsightsScenario"
+          ),
+          digitalShelfProductHealthOnlineAvailability: buildScenario(
+            "digitalShelfProductHealthOnlineAvailabilityScenario"
+          ),
+          digitalShelfProductHealthRatingsReviews: buildScenario(
+            "digitalShelfProductHealthRatingsReviewsScenario"
+          ),
+          digitalShelfProductHealthPriceCompetitiveness: buildScenario(
+            "digitalShelfProductHealthPriceCompetitivenessScenario"
+          ),
+          digitalShelfProductHealthContentQuality: buildScenario(
+            "digitalShelfProductHealthContentQualityScenario"
+          ),
+          digitalShelfGlobalScoreCard: buildScenario(
+            "digitalShelfGlobalScoreCardScenario"
+          ),
+        }
+      : {}),
+  },
+};
+
+const dashboardAccessCounters = createScenarioCounters("dashboard_access");
+const reportDownloadCounters = createScenarioCounters("report_download");
+const bannerPresenceCounters = createScenarioCounters(
+  "digital_shelf_banner_presence"
+);
+const sosSearchInsightsCounters = createScenarioCounters(
+  "digital_shelf_share_of_search_search_insights"
+);
+const sosKeywordInsightsCounters = createScenarioCounters(
+  "digital_shelf_share_of_search_keyword_insights"
+);
+const phOnlineAvailabilityCounters = createScenarioCounters(
+  "digital_shelf_product_health_online_availability"
+);
+const phRatingsReviewsCounters = createScenarioCounters(
+  "digital_shelf_product_health_ratings_reviews"
+);
+const phPriceCompetitivenessCounters = createScenarioCounters(
+  "digital_shelf_product_health_price_competitiveness"
+);
+const phContentQualityCounters = createScenarioCounters(
+  "digital_shelf_product_health_content_quality"
+);
+const globalScoreCardCounters = createScenarioCounters(
+  "digital_shelf_global_score_card"
+);
+
+export function dashboardAccessScenario() {
   const accountResponse = getAccountDetails();
 
-  //   // Step 2: User accesses the report list
-  //   const reportListResponse = getUserCategoryInsights();
-
-  //   // Step 3: User downloads a specific report
-  //   const reportDownloadResponse = getPresignedS3URL();
-
-  // Count success or failure based on API response status
-  if (
-    accountResponse.status === 200
-    // &&
-    // reportListResponse.status === 200 &&
-    // reportDownloadResponse.status === 200
-  ) {
-    reportDownloadSuccessCounter.add(1);
+  if (accountResponse.status === 200) {
+    dashboardAccessCounters.success.add(1);
   } else {
-    reportDownloadFailedCounter.add(1);
+    dashboardAccessCounters.failed.add(1);
   }
+}
+
+export function reportDownloadScenario() {
+  const accountResponse = getAccountDetails();
+
+  if (accountResponse.status === 200) {
+    reportDownloadCounters.success.add(1);
+  } else {
+    reportDownloadCounters.failed.add(1);
+  }
+}
+
+export function digitalShelfBannerPresenceScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(bannerPresenceCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getDigitalShelfBannerPresence(),
+  ]);
+}
+
+export function digitalShelfShareOfSearchSearchInsightsScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(sosSearchInsightsCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getShareOfSearchKeywordOptions(),
+    getShareOfSearchSearchInsightsMetrics(),
+    getShareOfSearchSearchInsightsRanking(),
+  ]);
+}
+
+export function digitalShelfShareOfSearchKeywordInsightsScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(sosKeywordInsightsCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getShareOfSearchKeywordOptions(),
+    getShareOfSearchKeywordInsightsScatterPlot(),
+    getShareOfSearchKeywordDistribution(),
+    getShareOfSearchPositionTable(),
+  ]);
+}
+
+export function digitalShelfProductHealthOnlineAvailabilityScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(phOnlineAvailabilityCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getDigitalShelfShopsByBrands(),
+    getDigitalShelfCompetitorBrands(),
+    getProductHealthOnlineAvailabilityMetrics(),
+    getProductHealthOnlineAvailabilityProducts(),
+  ]);
+}
+
+export function digitalShelfProductHealthRatingsReviewsScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(phRatingsReviewsCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getDigitalShelfShopsByBrands(),
+    getDigitalShelfCompetitorBrands(),
+    getProductHealthRatingsReviewsMetrics(),
+    getProductHealthRatingsReviewsProducts(),
+  ]);
+}
+
+export function digitalShelfProductHealthPriceCompetitivenessScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(phPriceCompetitivenessCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getDigitalShelfShopsByBrands(),
+    getDigitalShelfCompetitorBrands(),
+    getProductHealthPriceCompetitivenessMetrics(),
+    getProductHealthPriceCompetitivenessProducts(),
+  ]);
+}
+
+export function digitalShelfProductHealthContentQualityScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(phContentQualityCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getDigitalShelfShopsByBrands(),
+    getDigitalShelfCompetitorBrands(),
+    getProductHealthContentQualityMetrics(),
+    getProductHealthContentQualityProducts(),
+  ]);
+}
+
+export function digitalShelfGlobalScoreCardScenario() {
+  if (!isDigitalShelfEnabled) {
+    return;
+  }
+
+  recordScenario(globalScoreCardCounters, [
+    getAccountDetails(),
+    getDigitalShelfSubscriptionDetails(),
+    getGlobalScoreCardTrendMetrics(),
+    getGlobalScoreCardTableMetrics(),
+    getGlobalScoreCardCountryTableMetricsBatch(),
+  ]);
 }

@@ -1,32 +1,8 @@
-import http from "k6/http";
-import { check } from "k6";
+import { getRequest } from "./http.js";
 
 export function getAccountDetails() {
-  const API_URL =
-    __ENV.BASE_URL +
-    "/api/my-account/get-user-details/" +
-    __ENV.DEFAULT_USER_ID;
-
-  const response = http.get(API_URL, {
-    headers: {
-      accept: "*/*",
-      "content-type": "application/json",
-      Authorization: `Bearer ${__ENV.TOKEN}`,
-    },
+  return getRequest(`/api/my-account/get-user-details/${__ENV.DEFAULT_USER_ID}`, {
+    name: "getAccountDetails",
     timeout: "1s",
   });
-
-  if (response.status != 200) {
-    console.log("----------------------------------------");
-    console.log(response);
-  }
-
-  check(response, {
-    "[getAccountDetails] response status must be 200": (res) =>
-      res.status === 200,
-    "[getAccountDetails] response data must not be null": (res) =>
-      res.json().data != null,
-  });
-
-  return response.json();
 }

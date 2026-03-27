@@ -1,6 +1,34 @@
 import { getAccountDetails } from "./helper/account.js";
-import { getUserPowerBIDashboardByID, getUserPowerBIDashboards } from "./helper/category-dashboard.js";
+import {
+  getUserPowerBIDashboardByID,
+  getUserPowerBIDashboards,
+} from "./helper/category-dashboard.js";
 import { getPresignedS3URL, getUserCategoryInsights } from "./helper/category-report.js";
+import {
+  getDigitalShelfBannerPresence,
+  getDigitalShelfCompetitorBrands,
+  getDigitalShelfShopsByBrands,
+  getDigitalShelfSubscriptionDetails,
+  getGlobalScoreCardCountryTableMetricsBatch,
+  getGlobalScoreCardTableMetrics,
+  getGlobalScoreCardTrendMetrics,
+  getProductHealthContentQualityMetrics,
+  getProductHealthContentQualityProducts,
+  getProductHealthOnlineAvailabilityMetrics,
+  getProductHealthOnlineAvailabilityProducts,
+  getProductHealthPriceCompetitivenessMetrics,
+  getProductHealthPriceCompetitivenessProducts,
+  getProductHealthRatingsReviewsMetrics,
+  getProductHealthRatingsReviewsProducts,
+  getShareOfSearchKeywordDistribution,
+  getShareOfSearchKeywordInsightsScatterPlot,
+  getShareOfSearchKeywordOptions,
+  getShareOfSearchPositionTable,
+  getShareOfSearchSearchInsightsMetrics,
+  getShareOfSearchSearchInsightsRanking,
+} from "./helper/digital-shelf.js";
+
+const isDigitalShelfEnabled = __ENV.ENABLE_DIGITAL_SHELF === "true";
 
 export const options = {
     vus: 1, // Number of virtual users
@@ -24,4 +52,28 @@ export default function () {
     // CATEGORY REPORT SCENARIOS
     getUserCategoryInsights();
     getPresignedS3URL();
+
+    if (isDigitalShelfEnabled) {
+        getDigitalShelfSubscriptionDetails();
+        getDigitalShelfBannerPresence();
+        getDigitalShelfCompetitorBrands();
+        getDigitalShelfShopsByBrands();
+        getShareOfSearchKeywordOptions();
+        getShareOfSearchSearchInsightsMetrics();
+        getShareOfSearchSearchInsightsRanking();
+        getShareOfSearchKeywordInsightsScatterPlot();
+        getShareOfSearchKeywordDistribution();
+        getShareOfSearchPositionTable();
+        getProductHealthOnlineAvailabilityMetrics();
+        getProductHealthOnlineAvailabilityProducts();
+        getProductHealthRatingsReviewsMetrics();
+        getProductHealthRatingsReviewsProducts();
+        getProductHealthPriceCompetitivenessMetrics();
+        getProductHealthPriceCompetitivenessProducts();
+        getProductHealthContentQualityMetrics();
+        getProductHealthContentQualityProducts();
+        getGlobalScoreCardTrendMetrics();
+        getGlobalScoreCardTableMetrics();
+        getGlobalScoreCardCountryTableMetricsBatch();
+    }
 }
