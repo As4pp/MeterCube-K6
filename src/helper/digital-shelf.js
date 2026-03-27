@@ -1,5 +1,20 @@
 import { envBool, envList, postRequest } from "./http.js";
 
+function parseJsonEnv(name) {
+  const value = __ENV[name];
+
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    console.log(`[digital-shelf] Failed to parse ${name} as JSON: ${error}`);
+    return undefined;
+  }
+}
+
 function digitalShelfFilters() {
   return {
     startDate: __ENV.DIGITAL_SHELF_START_DATE,
@@ -409,6 +424,7 @@ export function getGlobalScoreCardTrendMetrics() {
 
 export function getGlobalScoreCardTableMetrics() {
   const filters = digitalShelfFilters();
+  const benchmarkOverride = parseJsonEnv("DIGITAL_SHELF_GLOBAL_BENCHMARK_JSON");
 
   return postRequest(
     "/api/digital-shelf/global-score-card/table-metrics",
@@ -422,7 +438,7 @@ export function getGlobalScoreCardTableMetrics() {
       channels: filters.channels,
       brands: filters.brands,
       tab: __ENV.DIGITAL_SHELF_GLOBAL_SCORECARD_TAB ?? "Country",
-      benchmark: globalScoreCardBenchmark(),
+      benchmark: benchmarkOverride ?? globalScoreCardBenchmark(),
     },
     {
       name: "getGlobalScoreCardTableMetrics",
@@ -433,6 +449,12 @@ export function getGlobalScoreCardTableMetrics() {
 export function getGlobalScoreCardCountryTableMetricsBatch() {
   const filters = digitalShelfFilters();
   const benchmark = globalScoreCardBenchmark();
+  const globalBenchmarkOverride = parseJsonEnv(
+    "DIGITAL_SHELF_GLOBAL_BENCHMARK_JSON"
+  );
+  const countryBenchmarksOverride = parseJsonEnv(
+    "DIGITAL_SHELF_COUNTRY_BENCHMARKS_JSON"
+  );
 
   return postRequest(
     "/api/digital-shelf/global-score-card/country-table-metrics-batch",
@@ -445,11 +467,14 @@ export function getGlobalScoreCardCountryTableMetricsBatch() {
       categoryL4: filters.categoryL4,
       channels: filters.channels,
       brands: filters.brands,
-      globalBenchmark: benchmark,
-      countryBenchmarks: {
-        [__ENV.DIGITAL_SHELF_COUNTRY_BENCHMARK_KEY ?? filters.country ?? "default"]:
-          benchmark,
-      },
+      globalBenchmark: globalBenchmarkOverride ?? benchmark,
+      countryBenchmarks:
+        countryBenchmarksOverride ??
+        {
+          [__ENV.DIGITAL_SHELF_COUNTRY_BENCHMARK_KEY ??
+          filters.country ??
+          "default"]: benchmark,
+        },
     },
     {
       name: "getGlobalScoreCardCountryTableMetricsBatch",

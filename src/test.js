@@ -29,6 +29,7 @@ import {
 } from "./helper/digital-shelf.js";
 
 const isDigitalShelfEnabled = __ENV.ENABLE_DIGITAL_SHELF === "true";
+const isLegacyTestsEnabled = __ENV.ENABLE_LEGACY_TESTS === "true";
 
 export const options = {
     vus: 1, // Number of virtual users
@@ -42,16 +43,13 @@ export default function () {
     // console.info(__ENV.BASE_URL);
     // console.info(__ENV.USER_ID);
 
-    // USER SCENARIOS
-    getAccountDetails();
-
-    // CATEGORY DASHBOARD SCENARIOS
-    getUserPowerBIDashboards();
-    getUserPowerBIDashboardByID();
-
-    // CATEGORY REPORT SCENARIOS
-    getUserCategoryInsights();
-    getPresignedS3URL();
+    if (isLegacyTestsEnabled) {
+        getAccountDetails();
+        getUserPowerBIDashboards();
+        getUserPowerBIDashboardByID();
+        getUserCategoryInsights();
+        getPresignedS3URL();
+    }
 
     if (isDigitalShelfEnabled) {
         getDigitalShelfSubscriptionDetails();

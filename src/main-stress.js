@@ -1,3 +1,4 @@
+import { sleep } from "k6";
 import { Counter } from "k6/metrics";
 import { getAccountDetails } from "./helper/account.js";
 import {
@@ -33,6 +34,11 @@ import {
 } from "./helper/digital-shelf.js";
 
 const isDigitalShelfEnabled = __ENV.ENABLE_DIGITAL_SHELF === "true";
+const isLegacyTestsEnabled = __ENV.ENABLE_LEGACY_TESTS === "true";
+const scenarioVus = Number(__ENV.STRESS_SCENARIO_VUS ?? "2");
+const scenarioIterations = Number(__ENV.STRESS_SCENARIO_ITERATIONS ?? "10");
+const minStepDelaySeconds = Number(__ENV.MIN_STEP_DELAY_SECONDS ?? "1");
+const maxStepDelaySeconds = Number(__ENV.MAX_STEP_DELAY_SECONDS ?? "3");
 
 function createThresholds(prefix, minSuccess) {
   return {
@@ -45,8 +51,8 @@ function buildScenario(exec) {
   return {
     exec,
     executor: "per-vu-iterations",
-    vus: 1,
-    iterations: 100,
+    vus: scenarioVus,
+    iterations: scenarioIterations,
     maxDuration: "1m",
   };
 }
@@ -66,10 +72,33 @@ function recordScenario(counters, responses) {
   }
 }
 
+function randomStepDelay() {
+  const range = Math.max(maxStepDelaySeconds - minStepDelaySeconds, 0);
+  return minStepDelaySeconds + Math.random() * range;
+}
+
+function runScenarioSteps(counters, steps) {
+  const responses = [];
+
+  for (let index = 0; index < steps.length; index += 1) {
+    responses.push(steps[index]());
+
+    if (index < steps.length - 1) {
+      sleep(randomStepDelay());
+    }
+  }
+
+  recordScenario(counters, responses);
+}
+
 export const options = {
   thresholds: {
-    ...createThresholds("dashboard_access", 2990),
-    ...createThresholds("report_download", 2990),
+    ...(isLegacyTestsEnabled
+      ? {
+          ...createThresholds("dashboard_access", 2990),
+          ...createThresholds("report_download", 2990),
+        }
+      : {}),
     ...(isDigitalShelfEnabled
       ? {
           ...createThresholds("digital_shelf_banner_presence", 2990),
@@ -84,8 +113,12 @@ export const options = {
       : {}),
   },
   scenarios: {
-    dashboardAccess: buildScenario("dashboardAccessScenario"),
-    reportDownload: buildScenario("reportDownloadScenario"),
+    ...(isLegacyTestsEnabled
+      ? {
+          dashboardAccess: buildScenario("dashboardAccessScenario"),
+          reportDownload: buildScenario("reportDownloadScenario"),
+        }
+      : {}),
     ...(isDigitalShelfEnabled
       ? {
           digitalShelfBannerPresence: buildScenario(
@@ -145,26 +178,26 @@ const globalScoreCardCounters = createScenarioCounters(
 );
 
 export function dashboardAccessScenario() {
-  const accountResponse = getAccountDetails();
-  const dashboardListResponse = getUserPowerBIDashboards();
-  const dashboardDetailResponse = getUserPowerBIDashboardByID();
+  if (!isLegacyTestsEnabled) {
+    return;
+  }
 
-  recordScenario(dashboardAccessCounters, [
-    accountResponse,
-    dashboardListResponse,
-    dashboardDetailResponse,
+  runScenarioSteps(dashboardAccessCounters, [
+    getAccountDetails,
+    getUserPowerBIDashboards,
+    getUserPowerBIDashboardByID,
   ]);
 }
 
 export function reportDownloadScenario() {
-  const accountResponse = getAccountDetails();
-  const reportListResponse = getUserCategoryInsights();
-  const reportDownloadResponse = getPresignedS3URL();
+  if (!isLegacyTestsEnabled) {
+    return;
+  }
 
-  recordScenario(reportDownloadCounters, [
-    accountResponse,
-    reportListResponse,
-    reportDownloadResponse,
+  runScenarioSteps(reportDownloadCounters, [
+    getAccountDetails,
+    getUserCategoryInsights,
+    getPresignedS3URL,
   ]);
 }
 
@@ -173,10 +206,10 @@ export function digitalShelfBannerPresenceScenario() {
     return;
   }
 
-  recordScenario(bannerPresenceCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getDigitalShelfBannerPresence(),
+  runScenarioSteps(bannerPresenceCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getDigitalShelfBannerPresence,
   ]);
 }
 
@@ -185,12 +218,12 @@ export function digitalShelfShareOfSearchSearchInsightsScenario() {
     return;
   }
 
-  recordScenario(sosSearchInsightsCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getShareOfSearchKeywordOptions(),
-    getShareOfSearchSearchInsightsMetrics(),
-    getShareOfSearchSearchInsightsRanking(),
+  runScenarioSteps(sosSearchInsightsCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getShareOfSearchKeywordOptions,
+    getShareOfSearchSearchInsightsMetrics,
+    getShareOfSearchSearchInsightsRanking,
   ]);
 }
 
@@ -199,13 +232,13 @@ export function digitalShelfShareOfSearchKeywordInsightsScenario() {
     return;
   }
 
-  recordScenario(sosKeywordInsightsCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getShareOfSearchKeywordOptions(),
-    getShareOfSearchKeywordInsightsScatterPlot(),
-    getShareOfSearchKeywordDistribution(),
-    getShareOfSearchPositionTable(),
+  runScenarioSteps(sosKeywordInsightsCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getShareOfSearchKeywordOptions,
+    getShareOfSearchKeywordInsightsScatterPlot,
+    getShareOfSearchKeywordDistribution,
+    getShareOfSearchPositionTable,
   ]);
 }
 
@@ -214,13 +247,13 @@ export function digitalShelfProductHealthOnlineAvailabilityScenario() {
     return;
   }
 
-  recordScenario(phOnlineAvailabilityCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getDigitalShelfShopsByBrands(),
-    getDigitalShelfCompetitorBrands(),
-    getProductHealthOnlineAvailabilityMetrics(),
-    getProductHealthOnlineAvailabilityProducts(),
+  runScenarioSteps(phOnlineAvailabilityCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getDigitalShelfShopsByBrands,
+    getDigitalShelfCompetitorBrands,
+    getProductHealthOnlineAvailabilityMetrics,
+    getProductHealthOnlineAvailabilityProducts,
   ]);
 }
 
@@ -229,13 +262,13 @@ export function digitalShelfProductHealthRatingsReviewsScenario() {
     return;
   }
 
-  recordScenario(phRatingsReviewsCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getDigitalShelfShopsByBrands(),
-    getDigitalShelfCompetitorBrands(),
-    getProductHealthRatingsReviewsMetrics(),
-    getProductHealthRatingsReviewsProducts(),
+  runScenarioSteps(phRatingsReviewsCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getDigitalShelfShopsByBrands,
+    getDigitalShelfCompetitorBrands,
+    getProductHealthRatingsReviewsMetrics,
+    getProductHealthRatingsReviewsProducts,
   ]);
 }
 
@@ -244,13 +277,13 @@ export function digitalShelfProductHealthPriceCompetitivenessScenario() {
     return;
   }
 
-  recordScenario(phPriceCompetitivenessCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getDigitalShelfShopsByBrands(),
-    getDigitalShelfCompetitorBrands(),
-    getProductHealthPriceCompetitivenessMetrics(),
-    getProductHealthPriceCompetitivenessProducts(),
+  runScenarioSteps(phPriceCompetitivenessCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getDigitalShelfShopsByBrands,
+    getDigitalShelfCompetitorBrands,
+    getProductHealthPriceCompetitivenessMetrics,
+    getProductHealthPriceCompetitivenessProducts,
   ]);
 }
 
@@ -259,13 +292,13 @@ export function digitalShelfProductHealthContentQualityScenario() {
     return;
   }
 
-  recordScenario(phContentQualityCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getDigitalShelfShopsByBrands(),
-    getDigitalShelfCompetitorBrands(),
-    getProductHealthContentQualityMetrics(),
-    getProductHealthContentQualityProducts(),
+  runScenarioSteps(phContentQualityCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getDigitalShelfShopsByBrands,
+    getDigitalShelfCompetitorBrands,
+    getProductHealthContentQualityMetrics,
+    getProductHealthContentQualityProducts,
   ]);
 }
 
@@ -274,11 +307,11 @@ export function digitalShelfGlobalScoreCardScenario() {
     return;
   }
 
-  recordScenario(globalScoreCardCounters, [
-    getAccountDetails(),
-    getDigitalShelfSubscriptionDetails(),
-    getGlobalScoreCardTrendMetrics(),
-    getGlobalScoreCardTableMetrics(),
-    getGlobalScoreCardCountryTableMetricsBatch(),
+  runScenarioSteps(globalScoreCardCounters, [
+    getAccountDetails,
+    getDigitalShelfSubscriptionDetails,
+    getGlobalScoreCardTrendMetrics,
+    getGlobalScoreCardTableMetrics,
+    getGlobalScoreCardCountryTableMetricsBatch,
   ]);
 }
